@@ -86,10 +86,16 @@
       </div>
     </section>
     <div hidden="" id="workspace">
+        <div class="studio-head">
+          <div>
+            <div class="studio-kicker">LESSON STUDIO / PROJECT</div>
+            <h2 id="studioTitle">새 수업 프로젝트</h2>
+            <small id="studioMeta"> 단원 설계에서 차시별 실행 자료까지 </small>
+          </div>
+          <button id="nextStep"></button>
+          <button id="saveTop">Drive 저장</button>
+        </div>
       <section>
-        <div class="studio-kicker">WORKSPACE</div>
-        <h2 style="font-size: 19px; margin: 8px 0">나의 수업 작업실</h2>
-        <button id="newTop" style="width: 100%">＋ 새 프로젝트</button>
         <div aria-label="작업 메뉴" class="studio-nav" role="tablist">
           <button aria-selected="true" data-panel="overview" role="tab">
             01　프로젝트 개요
@@ -104,7 +110,9 @@
             04　자료 제작
           </button>
         </div>
-        <div class="studio-kicker">MY PROJECTS</div>
+        <details id="projectSwitch">
+          <summary>프로젝트 전환</summary>
+          <button id="newTop">＋ 새 프로젝트</button>
         <div id="projects"></div>
         <div class="side-tools">
           <button class="secondary" disabled="" id="reload">새로고침</button>
@@ -112,17 +120,10 @@
             Drive 열기 ↗
           </a>
         </div>
+        </details>
         <p id="status" role="status">Google Drive 연결을 준비합니다.</p>
       </section>
       <div class="studio-main">
-        <div class="studio-head">
-          <div>
-            <div class="studio-kicker">LESSON STUDIO / PROJECT</div>
-            <h2 id="studioTitle">새 수업 프로젝트</h2>
-            <small id="studioMeta"> 단원 설계에서 차시별 실행 자료까지 </small>
-          </div>
-          <button id="saveTop">Drive 저장</button>
-        </div>
         <section class="studio-panel" id="panel-overview">
           <div class="studio-kicker">01 / PROJECT BRIEF</div>
           <h2>수업 프로젝트 개요</h2>
@@ -217,8 +218,7 @@
           <div class="studio-kicker">02 / LESSON MAP</div>
           <h2>차시별 구성</h2>
           <p class="studio-sub">
-            단원 전체의 수업 흐름을 정리하세요. 각 차시의 제목과 상세 설계를
-            개별 관리합니다.
+            차시를 추가하고 수업 제목을 입력하세요. 상세에서 활동을 기록한 뒤 ‘이 차시 자료 제작’을 누르세요.
           </p>
           <div class="studio-list" id="lessonList"></div>
           <button id="addLesson" style="margin-top: 14px">＋ 차시 추가</button>

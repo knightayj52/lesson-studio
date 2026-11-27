@@ -382,7 +382,7 @@ async function lessonPackage(wholeUnit = false) {
                 s.record["성취기준 코드"] +
                 " · " +
                 (evidenceStages(project.lessons[index], s)
-                  .map((i) => "L" + (index + 1) + "-A" + (i + 1))
+                  .map((i) => activityLabel(index, i))
                   .join(", ") || "활동 증거 미지정"),
             ),
         ],
