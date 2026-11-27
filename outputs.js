@@ -359,32 +359,77 @@ async function pdfFile(cards, title, kind) {
   return new Blob([await doc.save()], { type: "application/pdf" });
 }
 
-async function lessonPackage() {
+async function lessonPackage(wholeUnit = false) {
+  const project = structuredClone(snapshot());
+  const indices = wholeUnit
+    ? project.lessons.map((_, i) => i)
+    : [selectedLesson];
+  if (!indices.length) throw Error("차시를 먼저 추가하세요.");
+  const overview = indices.map((index) => {
+    try {
+      const { d, duration, p } = context(5, index, project);
+      return {
+        title:
+          index + 1 + "차시 · " + (project.lessons[index].title || "제목 없음"),
+        body: [
+          duration + "분 · " + d.goal,
+          "탐구 질문　" + d.question,
+          "성공기준　" + d.success,
+          ...p.sources
+            .filter((s) => s.kind === "전체")
+            .map(
+              (s) =>
+                s.record["성취기준 코드"] +
+                " · " +
+                (evidenceStages(project.lessons[index], s)
+                  .map((i) => "L" + (index + 1) + "-A" + (i + 1))
+                  .join(", ") || "활동 증거 미지정"),
+            ),
+        ],
+      };
+    } catch (error) {
+      throw Error(index + 1 + "차시 · " + error.message);
+    }
+  });
   await library("vendor/jszip.min.js");
   const files = new JSZip();
   const formats = ["pptx", "docx", "pdf", "png", "png", "docx"];
-  for (const [kind, extension] of formats.entries()) {
-    const { title, cards } = context(kind);
-    outStatus(kinds[kind] + " 제작 중 · " + (kind + 1) + "/6");
-    let blob;
-    switch (extension) {
-      case "pptx":
-        blob = await powerpoint(cards, title);
-        break;
-      case "pdf":
-        blob = await pdfFile(cards, title, kind);
-        break;
-      case "png":
-        blob = await raster(cards, title, kind);
-        break;
-      default:
-        blob = await wordFile(cards, title);
-    }
-    const group = [0, 2, 4].includes(kind) ? "교실용" : "교사용";
-    files.file(
-      group + "/" + kinds[kind] + "." + extension,
-      await blob.arrayBuffer(),
+  if (wholeUnit) {
+    const guide = await wordFile(
+      overview,
+      (project.title || "단원") + " · 차시별 수업 및 평가 안내",
     );
+    files.file("단원 안내.docx", await guide.arrayBuffer());
+  }
+  for (const index of indices) {
+    const folder = wholeUnit
+      ? files.folder(String(index + 1).padStart(3, "0") + "차시")
+      : files;
+    for (const [kind, extension] of formats.entries()) {
+      const { title, cards } = context(kind, index, project);
+      outStatus(
+        index + 1 + "차시 · " + kinds[kind] + " 제작 중 · " + (kind + 1) + "/6",
+      );
+      let blob;
+      switch (extension) {
+        case "pptx":
+          blob = await powerpoint(cards, title);
+          break;
+        case "pdf":
+          blob = await pdfFile(cards, title, kind);
+          break;
+        case "png":
+          blob = await raster(cards, title, kind);
+          break;
+        default:
+          blob = await wordFile(cards, title);
+      }
+      const group = [0, 2, 4].includes(kind) ? "교실용" : "교사용";
+      folder.file(
+        group + "/" + kinds[kind] + "." + extension,
+        await blob.arrayBuffer(),
+      );
+    }
   }
   return files.generateAsync({ type: "blob", mimeType: "application/zip" });
 }

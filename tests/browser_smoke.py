@@ -18,7 +18,7 @@ server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler,
 threading.Thread(target=server.serve_forever, daemon=True).start()
 project = {}
 uploads = []
-rows = [["학년군", "교과", "성취기준 코드", "성취기준"], ["초등", "과학", "[가상01-01]", "가상 원문"]]
+rows = [["학년군", "교과", "성취기준 코드", "성취기준", "성취수준 A"], ["가상", "통합", "[가상01-01]", "가상 원문", "가상의 수준 진술"]]
 
 
 def drive(route):
@@ -53,7 +53,7 @@ with ExitStack() as stack:
     """))
     page.route("https://www.googleapis.com/**", drive)
     page.route("https://sheets.googleapis.com/**", lambda r: r.fulfill(json={"valueRanges":[{"values":rows},{"values":[["전략명"]]},{"values":[["교과서단원"]]}]}))
-    page.goto("http://127.0.0.1:"+str(server.server_port))
+    page.goto(os.environ.get("LESSON_STUDIO_URL") or "http://127.0.0.1:"+str(server.server_port))
     page.click("#heroLogin")
     for i,topic in enumerate(["그늘", "변화율", "통근"]):
         page.click("[data-panel=overview]")
@@ -63,6 +63,31 @@ with ExitStack() as stack:
         for k in range(6):
             page.click(f'#kinds button[data-kind="{k}"]')
             assert "L1-A4" in page.locator("#preview").inner_text()
+        page.click("[data-panel=lessons]")
+        page.click("#copyLesson")
+        page.get_by_label("2차시 제목").fill("후속 탐구")
+        page.click("#openLesson")
+        page.get_by_label("학습목표", exact=True).fill("새 사례에 적용해 설명한다.")
+        # Download while lesson 2 is selected, preserving the active editor.
+        with page.expect_download(timeout=90000) as unit:
+            page.click('[data-out="unit"]')
+        with ZipFile(unit.value.path()) as archive:
+            names = [n for n in archive.namelist() if not n.endswith("/")]
+            assert len(names) == 13
+            with ZipFile(BytesIO(archive.read("단원 안내.docx"))) as guide:
+                contents = guide.read("word/document.xml").decode()
+                assert topic in contents and "후속 탐구" in contents
+            for number in [1, 2]:
+                path = f"{number:03}차시/교사용/교수학습 과정안.docx"
+                with ZipFile(BytesIO(archive.read(path))) as doc:
+                    contents = doc.read("word/document.xml").decode()
+                    assert f"L{number}-A4" in contents
+                    assert ("새 사례에 적용해 설명한다." in contents) == (number == 2)
+        assert page.locator("#whichLesson").input_value() == "1"
+    page.get_by_label("학습목표", exact=True).fill("")
+    page.select_option("#whichLesson", "0")
+    page.click('[data-out="unit"]')
+    page.get_by_text(re.compile("2차시 · 목표·질문")).wait_for()
     page.click("[data-panel=overview]")
     page.fill("#plan", "설계서에 연결된 기준 [가상01-01]")
     page.click("[data-panel=curriculum]")
@@ -76,11 +101,17 @@ with ExitStack() as stack:
     page.click("#syncSheet")
     page.get_by_text(re.compile("원본에서 삭제됨")).first.wait_for()
     page.click("[data-panel=materials]")
+    page.get_by_text("이 차시에 적용할 성취기준", exact=True).click()
+    page.locator("#designer fieldset input").nth(1).check()
+    page.click('#kinds button[data-kind="5"]')
+    mapping = page.locator("#preview .sheet-card").last.inner_text()
+    assert "L1-A2" in mapping and "가상의 수준 진술" in mapping and "L1-A3" not in mapping
     page.check("#archive")
     with page.expect_download(timeout=90000) as dl:
         page.click('[data-out="zip"]')
     page.wait_for_function("document.querySelector('#outputStatus').textContent.includes('보관 완료')")
     assert project["title"] and uploads == [True]
+    assert list(project["lessons"][0]["evidenceLinks"].values()) == [[1]]
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp)/"package.zip"
         dl.value.save_as(path)
@@ -94,7 +125,10 @@ with ExitStack() as stack:
                         assert "ppt/notesSlides/notesSlide2.xml" in slides.namelist()
                 elif name.endswith(".docx"):
                     with ZipFile(BytesIO(raw)) as doc:
-                        assert "L1-A4" in doc.read("word/document.xml").decode()
+                        xml = doc.read("word/document.xml").decode()
+                        assert "L1-A4" in xml
+                        if "평가" in name:
+                            assert "가상의 수준 진술" in xml and "L1-A2 ·" in xml.split("원본 성취수준")[-1]
                 elif name.endswith(".pdf"):
                     assert raw.startswith(b"%PDF")
                 else:

@@ -178,6 +178,12 @@ function validDesign(d) {
     )
   );
 }
+function evidenceStages(lesson, source) {
+  const indices = lesson.evidenceLinks?.[source.key];
+  return Array.isArray(indices)
+    ? [0, 1, 2, 3].filter((i) => indices.includes(i))
+    : [];
+}
 function materialCards(kind, p, l, d, index) {
   const code = (i) => "L" + (index + 1) + "-A" + (i + 1);
   const cards = d.stages.map((s, i) => {
@@ -237,10 +243,9 @@ function materialCards(kind, p, l, d, index) {
         body = [
           "평가 과제　" + s.action,
           "관찰할 증거　" + s.evidence,
-          "판단 기준　" + d.success,
-          "독립 수행　활동 기록에서 기준을 스스로 충족한다.",
-          "부분 수행　근거 또는 설명을 보완하면 기준에 도달한다.",
-          "지원 필요　사례와 질문을 제공해 함께 수행한다.",
+          "차시 성공기준　" + d.success,
+          "활동에서 확인한 부분　________________",
+          "다음 피드백 발문　" + (s.followUp || s.prompt),
         ];
         break;
     }
@@ -254,17 +259,26 @@ function materialCards(kind, p, l, d, index) {
       cards.push({
         title: src.record["성취기준 코드"] + " · 원본 성취수준",
         body: [
-          "대조할 차시 증거　" +
-            code(2) +
-            " " +
-            d.stages[2].evidence +
-            " / " +
-            code(3) +
-            " " +
-            d.stages[3].evidence,
+          "성취기준　" + (src.record["성취기준"] || ""),
+          "차시 성공기준　" + d.success,
+          ...(evidenceStages(l, src).length
+            ? evidenceStages(l, src).map(
+                (i) =>
+                  code(i) +
+                  " · " +
+                  d.stages[i].action +
+                  " → " +
+                  d.stages[i].evidence,
+              )
+            : [
+                "연결한 활동 증거가 없습니다. 평가 전에 관찰할 활동을 지정하세요.",
+              ]),
           ...(levels.length
             ? levels.map(([k, v]) => k + "　" + v)
             : ["원본에 성취수준이 기재되지 않았습니다."]),
+          "관찰한 학생의 말·기록　________________",
+          "원문과 대조한 판단 및 추가로 필요한 증거　________________",
+          ...(src.date ? ["출처　전체 탭 · " + src.date] : []),
         ],
         notes: src.date,
       });

@@ -145,6 +145,11 @@ function renderDesigner() {
         s[k],
         (v) => {
           s[k] = k === "time" ? Number(v) : v;
+          if (k === "evidence")
+            for (const caption of host.querySelectorAll(
+              `[data-evidence-stage="${i}"]`,
+            ))
+              caption.textContent = "활동 " + (i + 1) + " · " + v;
           if (k === "name")
             box.firstChild.textContent = "활동 " + (i + 1) + " · " + v;
           persist();
@@ -172,22 +177,61 @@ function renderDesigner() {
         markChanged();
         renderPreview();
       };
-      label.append(check, document.createTextNode(src.record["성취기준"]));
-      section.append(label);
+      const evidence = node("fieldset");
+      evidence.disabled = !check.checked;
+      evidence.append(node("legend", "이 기준을 판단할 때 살펴볼 활동 증거"));
+      for (const [i, stage] of d.stages.entries()) {
+        const option = node("label"),
+          input = node("input");
+        input.type = "checkbox";
+        input.checked = evidenceStages(lesson, src).includes(i);
+        input.onchange = () => {
+          const chosen = new Set(evidenceStages(lesson, src));
+          if (input.checked) chosen.add(i);
+          else chosen.delete(i);
+          lesson.evidenceLinks = {
+            ...lesson.evidenceLinks,
+            [src.key]: [...chosen],
+          };
+          markChanged();
+          renderPreview();
+        };
+        const caption = node(
+          "span",
+          "활동 " + (i + 1) + " · " + stage.evidence,
+        );
+        caption.dataset.evidenceStage = i;
+        option.append(input, caption);
+        evidence.append(option);
+      }
+      check.addEventListener("change", () => {
+        evidence.disabled = !check.checked;
+      });
+      label.append(
+        check,
+        document.createTextNode(
+          src.record["성취기준 코드"] + " · " + src.record["성취기준"],
+        ),
+      );
+      section.append(label, evidence);
     }
     host.append(section);
   }
   renderPreview();
 }
-function context(kind = selectedKind) {
-  const l = lessons[selectedLesson],
-    p = snapshot();
+function context(
+  kind = selectedKind,
+  index = selectedLesson,
+  project = snapshot(),
+) {
+  const l = project.lessons[index],
+    p = { ...project };
   if (!l) throw Error("차시를 먼저 추가하세요.");
   if (Array.isArray(l.standardKeys))
     p.sources = p.sources.filter(
       (s) => s.kind !== "전체" || l.standardKeys.includes(s.key),
     );
-  const d = l.design || defaultDesign(p, l, selectedLesson);
+  const d = l.design || defaultDesign(p, l, index);
   const duration = d.stages?.reduce((a, s) => a + s.time, 0);
   const target =
     Number(p.minutes) ||
@@ -214,13 +258,13 @@ function context(kind = selectedKind) {
   )
     throw Error("목표·질문·성공기준과 네 단계의 활동·발문·증거를 입력하세요.");
   const title =
-    selectedLesson +
+    index +
     1 +
     "차시 · " +
     (l.title || p.title || "차시 설계") +
     " · " +
     kinds[kind];
-  const cards = materialCards(kind, p, l, d, selectedLesson);
+  const cards = materialCards(kind, p, l, d, index);
   if (l.stimulus && [0, 1, 2].includes(kind))
     cards.unshift({
       title: "자료 1 · 함께 살펴볼 자료",
@@ -240,7 +284,7 @@ function context(kind = selectedKind) {
         d.goal,
         "성공기준　" + d.success,
         "준비물　" + d.supplies,
-        ...(p.standards ? [p.standards] : []),
+        ...(p.standards ? ["단원 성취기준 메모　" + p.standards] : []),
         ...p.sources
           .filter((x) => x.kind === "전체")
           .map((x) => x.record["성취기준"]),
@@ -523,8 +567,8 @@ for (const b of document.querySelectorAll("[data-out]"))
     if (busy) return;
     let locked = false;
     try {
-      const { cards, title } = context(),
-        format = b.dataset.out;
+      const format = b.dataset.out;
+      const { cards, title } = format === "unit" ? {} : context();
       if (format === "print") {
         window.print();
         return;
@@ -534,8 +578,8 @@ for (const b of document.querySelectorAll("[data-out]"))
       locked = true;
       controls();
       const blob =
-        format === "zip"
-          ? await lessonPackage()
+        format === "zip" || format === "unit"
+          ? await lessonPackage(format === "unit")
           : format === "pdf"
             ? await pdfFile(cards, title, selectedKind)
             : format === "pptx"
@@ -544,14 +588,19 @@ for (const b of document.querySelectorAll("[data-out]"))
                 ? await wordFile(cards, title)
                 : await raster(cards, title, selectedKind);
       const outputTitle =
-        format === "zip"
-          ? selectedLesson +
-            1 +
-            "차시 · " +
-            (lessons[selectedLesson].title || $("title").value || "수업") +
-            " · 수업 자료 전체"
-          : title;
-      const name = outputTitle.replace(/[\\/:*?"<>|]/g, "-") + "." + format;
+        format === "unit"
+          ? ($("title").value || "단원") + " · 전체 차시"
+          : format === "zip"
+            ? selectedLesson +
+              1 +
+              "차시 · " +
+              (lessons[selectedLesson].title || $("title").value || "수업") +
+              " · 수업 자료 전체"
+            : title;
+      const name =
+        outputTitle.replace(/[\\/:*?"<>|]/g, "-") +
+        "." +
+        (format === "unit" ? "zip" : format);
       downloadBlob(blob, name);
       outStatus("다운로드 완료 · " + name);
       if ($("archive").checked) {
