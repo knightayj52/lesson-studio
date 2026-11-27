@@ -54,12 +54,35 @@ with ExitStack() as stack:
     page.route("https://www.googleapis.com/**", drive)
     page.route("https://sheets.googleapis.com/**", lambda r: r.fulfill(json={"valueRanges":[{"values":rows},{"values":[["전략명"]]},{"values":[["교과서단원"]]}]}))
     page.goto(os.environ.get("LESSON_STUDIO_URL") or "http://127.0.0.1:"+str(server.server_port))
+    assert page.locator("header button:visible").count() == 0
     page.click("#heroLogin")
     for i,topic in enumerate(["그늘", "변화율", "통근"]):
         page.click("[data-panel=overview]")
         page.get_by_text("학교급별 수업 예시 열기",exact=True).evaluate("s=>s.parentElement.open=true")
         page.locator("button[onclick='useExample("+str(i)+")']").click()
         assert topic in page.locator("#preview").inner_text()
+        if i == 0:
+            draft = page.evaluate("designFor(lessons[selectedLesson])")
+            def gemini(route):
+                assert route.request.headers["x-goog-api-key"] == "fixture-key"
+                if route.request.method == "POST":
+                    assert route.request.url.endswith("/models/gemini-3-flash:generateContent")
+                    route.fulfill(json={"candidates": [{"content": {"parts": [{"text": json.dumps(draft)}]}}]})
+                else:
+                    route.fulfill(json={"models": [
+                        {"name": "models/" + m, "supportedGenerationMethods": ["generateContent"]}
+                        for m in ["gemini-2-flash", "gemini-3-flash", "gemini-3-image", "gemma-3"]
+                    ]})
+            page.route("https://generativelanguage.googleapis.com/**", gemini)
+            page.fill("#aiKey", "fixture-key")
+            page.click("#models")
+            page.wait_for_selector("#suggest:enabled")
+            assert page.locator("#model option").count() == 2
+            assert page.input_value("#model") == "models/gemini-3-flash"
+            page.click("#suggest")
+            page.get_by_text("검토한 초안 적용", exact=True).click()
+            page.fill("#aiKey", "")
+            assert page.locator("#suggest").is_disabled()
         for k in range(6):
             page.click(f'#kinds button[data-kind="{k}"]')
             assert "L1-A4" in page.locator("#preview").inner_text()

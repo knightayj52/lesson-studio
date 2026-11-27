@@ -30,11 +30,10 @@ function controls() {
   const ready = !!token && !!root;
   $("landing").hidden = ready;
   $("workspace").hidden = !ready;
-  $("login").hidden = ready;
   $("logout").hidden = !ready;
   for (const id of ["save", "reload", "logout", "fresh"])
     $(id).disabled = !ready || busy;
-  for (const id of ["login", "heroLogin"]) $(id).disabled = busy;
+  $("heroLogin").disabled = busy;
   for (const id of [
     ...fields,
     "newTop",
@@ -294,7 +293,7 @@ async function save() {
     controls();
   }
 }
-$("login").onclick = () => {
+$("heroLogin").onclick = () => {
   if (
     dirty &&
     !confirm("저장하지 않은 변경사항이 있습니다. 계정을 전환할까요?")
@@ -303,7 +302,6 @@ $("login").onclick = () => {
   disconnect();
   connect();
 };
-$("heroLogin").onclick = $("login").onclick;
 $("logout").onclick = () => {
   if (dirty && !confirm("저장하지 않은 변경사항을 버릴까요?")) return;
   const t = token;

@@ -57,7 +57,7 @@ window.releaseSession = () => {
   $("hits").replaceChildren();
   $("query").value = "";
   $("aiKey").value = "";
-  $("model").replaceChildren();
+  resetModels();
   $("archive").checked = false;
   $("syncState").textContent = "원본 열람 권한이 있는 계정으로 연결하세요.";
 };
@@ -432,14 +432,21 @@ async function gemini(path, options = {}) {
     );
   return r.json();
 }
-$("aiKey").oninput = () => {
+function resetModels() {
+  $("models").disabled = !$("aiKey").value.trim();
+  $("model").disabled = true;
+  $("suggest").disabled = true;
+  $("modelStatus").textContent = "API 키를 입력한 뒤 모델 목록을 불러오세요. 키는 저장하지 않습니다.";
   aiRun++;
   $("model").replaceChildren();
   $("proposal").replaceChildren();
-};
+}
+$("aiKey").oninput = resetModels;
+$("model").onchange = () => { aiRun++; $("proposal").replaceChildren(); };
 $("models").onclick = async () => {
-  const run = ++aiRun;
-  $("model").replaceChildren();
+  resetModels();
+  const run = aiRun;
+  $("modelStatus").textContent = "모델을 불러오는 중입니다…";
   try {
     let page = "",
       names = [];
@@ -453,23 +460,26 @@ $("models").onclick = async () => {
         ...(res.models || []).filter(
           (m) =>
             m.supportedGenerationMethods?.includes("generateContent") &&
-            /^models\/[\w.-]+$/.test(m.name),
+            /^models\/gemini-[\w.-]+$/.test(m.name) &&
+            !/(?:image|audio|tts|robotics|computer-use|live|embedding|deep-research)/i.test(m.name),
         ),
       );
       page = res.nextPageToken;
     } while (page);
+    names.sort((a, b) => b.name.localeCompare(a.name, "en", { numeric: true }));
     for (const m of names)
       $("model").add(new Option(m.displayName || m.name, m.name));
-    outStatus(names.length + "개 생성 모델 조회");
+    $("model").disabled = $("suggest").disabled = !names.length;
+    $("modelStatus").textContent = names.length ? names.length + "개 모델을 불러왔습니다. 사용할 모델을 선택하세요." : "이 키로 조회된 Gemini 텍스트 생성 모델이 없습니다.";
   } catch (e) {
-    if (run === aiRun) outStatus(e.message);
+    if (run === aiRun) $("modelStatus").textContent = e.message;
   }
 };
 $("suggest").onclick = async () => {
   const model = $("model").value,
     l = lessons[selectedLesson];
   if (!model || !l) {
-    outStatus("차시와 모델을 선택하세요.");
+    $("proposal").textContent = "차시와 모델을 선택하세요.";
     return;
   }
   const run = ++aiRun,
