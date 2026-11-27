@@ -315,21 +315,44 @@ $("analyze").onclick = () => {
     ];
   const box = $("candidates");
   box.replaceChildren();
-  if (!found.length) {
+  const labels = [
+    ...raw.matchAll(
+      /^[ \t]*(단원명|주제|학습\s*목표|중심\s*아이디어|핵심\s*개념|탐구\s*질문|성공\s*기준|평가\s*증거|준비물)[ \t]*[:：][ \t]*(.+)$/gm,
+    ),
+  ];
+  for (const match of labels) box.append(node("p", match[1] + "　" + match[2]));
+  const codes = [...new Set(raw.match(/\[[^\]\s]{1,18}\d{2}-\d{2}\]/g) || [])];
+  if (codes.length)
     box.append(
       node(
         "p",
-        "차시 제목을 찾지 못했습니다. “1차시 물의 이동”처럼 입력하세요.",
+        "설계서에서 찾은 코드 · " +
+          codes.join(", ") +
+          " · 교육과정 메뉴에서 원문을 대조하세요.",
       ),
     );
-    return;
-  }
   const items = found.map((m, i) => ({
     title: m[2].trim() || m[1] + "차시",
     detail: raw
       .slice(m.index + m[0].length, found[i + 1]?.index ?? raw.length)
       .trim(),
   }));
+  if (!items.length && labels.length) {
+    const heading = labels.find((m) => ["단원명", "주제"].includes(m[1]));
+    items.push({
+      title: heading?.[2] || $("title").value || "설계서 기반 차시",
+      detail: raw,
+    });
+  }
+  if (!items.length) {
+    box.append(
+      node(
+        "p",
+        "차시 제목이나 학습목표를 찾지 못했습니다. ‘1차시 물의 이동’ 또는 ‘학습목표: …’처럼 입력하세요.",
+      ),
+    );
+    return;
+  }
   box.append(
     node("p", items.map((x, i) => i + 1 + ". " + x.title).join(" / ")),
   );
@@ -583,3 +606,44 @@ async function listArtifacts() {
 archives.ontoggle = () => {
   if (archives.open) listArtifacts();
 };
+function changeLesson(action) {
+  if (busy || !lessons[activeLesson]) return;
+  const from = activeLesson;
+  if (action === "edit") {
+    selectedLesson = from;
+    showPanel("materials");
+    return;
+  }
+  if (action === "copy") {
+    if (lessons.length >= 200) {
+      status("최대 200차시까지 관리할 수 있습니다.");
+      return;
+    }
+    const copy = structuredClone(lessons[from]);
+    copy.title = (copy.title || "차시") + " (복사)";
+    lessons.splice(from + 1, 0, copy);
+    activeLesson = from + 1;
+  } else if (action === "remove") {
+    if (!confirm(from + 1 + "차시와 해당 차시의 설계를 삭제할까요?")) return;
+    lessons.splice(from, 1);
+    activeLesson = Math.min(from, lessons.length - 1);
+  } else {
+    const to = from + (action === "up" ? -1 : 1);
+    if (to < 0 || to >= lessons.length) return;
+    [lessons[from], lessons[to]] = [lessons[to], lessons[from]];
+    activeLesson = to;
+  }
+  selectedLesson = Math.max(0, activeLesson);
+  aiRun++;
+  $("proposal").replaceChildren();
+  renderLessons();
+  markChanged();
+}
+for (const [id, action] of Object.entries({
+  openLesson: "edit",
+  moveUp: "up",
+  moveDown: "down",
+  copyLesson: "copy",
+  removeLesson: "remove",
+}))
+  $(id).onclick = () => changeLesson(action);
