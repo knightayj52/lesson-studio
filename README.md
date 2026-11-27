@@ -22,3 +22,7 @@ Google로 로그인한 뒤 **프로젝트 개요 → 학교급별 수업 예시 
 ## 포함한 라이브러리
 
 JSZip 3.10.1, PptxGenJS 4.0.1, PDF.js 5.6.205, pdf-lib, @pdf-lib/fontkit의 배포 파일과 라이선스는 `vendor/`에 있습니다. PDF용 Lesson Studio Sans는 Noto Sans CJK KR의 한글·라틴·기호 글리프를 추출하고 TrueType으로 변환한 글꼴입니다. 배포 글꼴의 라이선스는 `vendor/lesson-sans-LICENSE.txt`에 포함되어 있습니다.
+
+### v0.6 차시 자료 일괄 출력
+
+자료 제작에서 **이 차시 자료 6종 다운로드**를 누르면 발표자 노트 PPTX, 과정안 DOCX, 활동지 PDF, 판서·공책 PNG, 평가 DOCX를 한 ZIP으로 받습니다. Drive 보관을 선택하면 이름을 입력한 새 프로젝트를 먼저 저장하고 출력 파일을 연결합니다. GitHub의 Lesson Studio verification은 학교급별 단위 테스트와 가상 계정으로 진행하는 브라우저 검사를 실행합니다.

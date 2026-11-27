@@ -208,6 +208,74 @@ async function load(f) {
     controls();
   }
 }
+async function persistProject() {
+  if (!token || !root || !$("title").value.trim())
+    throw Error("프로젝트 이름과 Drive 연결을 확인하세요.");
+  let matchTag = "";
+  const saved = JSON.stringify(snapshot());
+  const data = {
+    ...JSON.parse(saved),
+    schemaVersion: 2,
+    updatedAt: new Date().toISOString(),
+  };
+  if (fileId) {
+    const check = await fetch(
+      "https://www.googleapis.com/drive/v3/files/" +
+        encodeURIComponent(fileId) +
+        "?fields=version",
+      { headers: { Authorization: "Bearer " + token }, cache: "no-store" },
+    );
+    if (!check.ok) throw Error("Drive 버전 조회 실패 " + check.status);
+    matchTag = check.headers.get("ETag");
+    const meta = await check.json();
+    if (meta.version !== revision)
+      throw Error(
+        "다른 기기에서 수정된 프로젝트입니다. 변경 내용을 JSON으로 다운로드한 뒤 다시 불러오세요.",
+      );
+  }
+  const boundary = "lessonstudio" + crypto.randomUUID(),
+    meta = {
+      name: data.title + ".json",
+      mimeType: "application/json",
+      appProperties: { lessonStudioProject: "1" },
+      ...(!fileId ? { parents: [root] } : {}),
+    };
+  const body =
+    "--" +
+    boundary +
+    "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" +
+    JSON.stringify(meta) +
+    "\r\n--" +
+    boundary +
+    "\r\nContent-Type: application/json\r\n\r\n" +
+    JSON.stringify(data) +
+    "\r\n--" +
+    boundary +
+    "--";
+  const f = await api(
+    "/upload/drive/v3/files" +
+      (fileId ? "/" + fileId : "") +
+      "?uploadType=multipart&fields=id,version",
+    {
+      method: fileId ? "PATCH" : "POST",
+      headers: {
+        "Content-Type": "multipart/related; boundary=" + boundary,
+        ...(matchTag ? { "If-Match": matchTag } : {}),
+      },
+      body,
+    },
+  );
+  fileId = f.id;
+  revision = f.version;
+  dirty = JSON.stringify(snapshot()) !== saved;
+  try {
+    await refresh();
+  } catch {
+    status("프로젝트 저장 완료 · 목록 갱신은 다음 연결에서 재시도합니다.");
+    return;
+  }
+  status("Drive 저장 완료 · " + new Date().toLocaleTimeString("ko-KR"));
+}
 async function save() {
   if (busy || !token || !root) return;
   if (!$("title").value.trim()) {
@@ -217,66 +285,8 @@ async function save() {
   clearTimeout(timer);
   busy = true;
   controls();
-  let matchTag = "";
-  const saved = JSON.stringify(snapshot());
-  const data = {
-    ...JSON.parse(saved),
-    schemaVersion: 2,
-    updatedAt: new Date().toISOString(),
-  };
   try {
-    if (fileId) {
-      const check = await fetch(
-        "https://www.googleapis.com/drive/v3/files/" +
-          encodeURIComponent(fileId) +
-          "?fields=version",
-        { headers: { Authorization: "Bearer " + token }, cache: "no-store" },
-      );
-      if (!check.ok) throw Error("Drive 버전 조회 실패 " + check.status);
-      matchTag = check.headers.get("ETag");
-      const meta = await check.json();
-      if (meta.version !== revision)
-        throw Error(
-          "다른 기기에서 수정된 프로젝트입니다. 변경 내용을 JSON으로 다운로드한 뒤 다시 불러오세요.",
-        );
-    }
-    const boundary = "lessonstudio" + crypto.randomUUID(),
-      meta = {
-        name: data.title + ".json",
-        mimeType: "application/json",
-        appProperties: { lessonStudioProject: "1" },
-        ...(!fileId ? { parents: [root] } : {}),
-      };
-    const body =
-      "--" +
-      boundary +
-      "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" +
-      JSON.stringify(meta) +
-      "\r\n--" +
-      boundary +
-      "\r\nContent-Type: application/json\r\n\r\n" +
-      JSON.stringify(data) +
-      "\r\n--" +
-      boundary +
-      "--";
-    const f = await api(
-      "/upload/drive/v3/files" +
-        (fileId ? "/" + fileId : "") +
-        "?uploadType=multipart&fields=id,version",
-      {
-        method: fileId ? "PATCH" : "POST",
-        headers: {
-          "Content-Type": "multipart/related; boundary=" + boundary,
-          ...(matchTag ? { "If-Match": matchTag } : {}),
-        },
-        body,
-      },
-    );
-    fileId = f.id;
-    revision = f.version;
-    dirty = JSON.stringify(snapshot()) !== saved;
-    await refresh();
-    status("Drive 저장 완료 · " + new Date().toLocaleTimeString("ko-KR"));
+    await persistProject();
   } catch (e) {
     status(e.message);
   } finally {

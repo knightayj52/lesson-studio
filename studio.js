@@ -179,7 +179,7 @@ function renderDesigner() {
   }
   renderPreview();
 }
-function context() {
+function context(kind = selectedKind) {
   const l = lessons[selectedLesson],
     p = snapshot();
   if (!l) throw Error("차시를 먼저 추가하세요.");
@@ -219,21 +219,21 @@ function context() {
     "차시 · " +
     (l.title || p.title || "차시 설계") +
     " · " +
-    kinds[selectedKind];
-  const cards = materialCards(selectedKind, p, l, d, selectedLesson);
-  if (l.stimulus && [0, 1, 2].includes(selectedKind))
+    kinds[kind];
+  const cards = materialCards(kind, p, l, d, selectedLesson);
+  if (l.stimulus && [0, 1, 2].includes(kind))
     cards.unshift({
       title: "자료 1 · 함께 살펴볼 자료",
       body: [l.stimulus],
       notes: "먼저 자료를 읽고 관찰한 사실과 추측을 구분하도록 안내한다.",
     });
-  if (selectedKind === 0)
+  if (kind === 0)
     cards.unshift({
       title: "오늘의 탐구 질문",
       body: [d.question, d.goal],
       notes: "준비물　" + d.supplies + "\n성공기준　" + d.success,
     });
-  if (selectedKind === 1)
+  if (kind === 1)
     cards.unshift({
       title: "차시 개요",
       body: [
@@ -534,24 +534,29 @@ for (const b of document.querySelectorAll("[data-out]"))
       locked = true;
       controls();
       const blob =
-        format === "pdf"
-          ? await pdfFile(cards, title, selectedKind)
-          : format === "pptx"
-            ? await powerpoint(cards, title)
-            : format === "docx"
-              ? await wordFile(cards, title)
-              : await raster(cards, title, selectedKind);
-      const name = title.replace(/[\\/:*?"<>|]/g, "-") + "." + format;
+        format === "zip"
+          ? await lessonPackage()
+          : format === "pdf"
+            ? await pdfFile(cards, title, selectedKind)
+            : format === "pptx"
+              ? await powerpoint(cards, title)
+              : format === "docx"
+                ? await wordFile(cards, title)
+                : await raster(cards, title, selectedKind);
+      const outputTitle =
+        format === "zip"
+          ? selectedLesson +
+            1 +
+            "차시 · " +
+            (lessons[selectedLesson].title || $("title").value || "수업") +
+            " · 수업 자료 전체"
+          : title;
+      const name = outputTitle.replace(/[\\/:*?"<>|]/g, "-") + "." + format;
       downloadBlob(blob, name);
       outStatus("다운로드 완료 · " + name);
       if ($("archive").checked) {
-        if (!fileId) {
-          outStatus(
-            "다운로드 완료 · 프로젝트를 Drive에 먼저 저장한 뒤 자료를 보관하세요.",
-          );
-          return;
-        }
         try {
+          if (!fileId || dirty) await persistProject();
           const f = await driveArtifact(blob, name);
           outStatus("다운로드 및 Drive 보관 완료 · " + f.name);
           await listArtifacts();

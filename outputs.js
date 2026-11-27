@@ -358,3 +358,33 @@ async function pdfFile(cards, title, kind) {
   }
   return new Blob([await doc.save()], { type: "application/pdf" });
 }
+
+async function lessonPackage() {
+  await library("vendor/jszip.min.js");
+  const files = new JSZip();
+  const formats = ["pptx", "docx", "pdf", "png", "png", "docx"];
+  for (const [kind, extension] of formats.entries()) {
+    const { title, cards } = context(kind);
+    outStatus(kinds[kind] + " 제작 중 · " + (kind + 1) + "/6");
+    let blob;
+    switch (extension) {
+      case "pptx":
+        blob = await powerpoint(cards, title);
+        break;
+      case "pdf":
+        blob = await pdfFile(cards, title, kind);
+        break;
+      case "png":
+        blob = await raster(cards, title, kind);
+        break;
+      default:
+        blob = await wordFile(cards, title);
+    }
+    const group = [0, 2, 4].includes(kind) ? "교실용" : "교사용";
+    files.file(
+      group + "/" + kinds[kind] + "." + extension,
+      await blob.arrayBuffer(),
+    );
+  }
+  return files.generateAsync({ type: "blob", mimeType: "application/zip" });
+}
