@@ -110,7 +110,61 @@ $("syncSheet").onclick = () => {
     })
     .requestAccessToken();
 };
+function renderMatches() {
+  const host = $("matchedStandards");
+  host.replaceChildren();
+  if (!catalog["전체"]) return;
+  const text = [
+    $("plan").value,
+    $("standards").value,
+    ...lessons.map((l) => l.title + " " + l.detail),
+  ].join("\n");
+  const codes = new Set(text.match(/\[[^\]\s]{1,22}\d{2}-\d{2}\]/g) || []);
+  if (!codes.size) return;
+  const byCode = new Map();
+  for (const entry of catalog["전체"].values()) {
+    const code = entry.record["성취기준 코드"];
+    if (!codes.has(code)) continue;
+    if (!byCode.has(code)) byCode.set(code, []);
+    byCode.get(code).push(entry);
+  }
+  const matches = [],
+    unresolved = [];
+  for (const code of codes) {
+    const rows = byCode.get(code) || [];
+    if (rows.length !== 1 || rows[0].conflict) {
+      unresolved.push(code);
+      continue;
+    }
+    if (!sources.some((s) => s.key === rows[0].key)) matches.push(rows[0]);
+  }
+  if (matches.length) {
+    host.append(
+      node(
+        "p",
+        "설계서와 원본에서 일치하는 기준 · " +
+          matches.map((e) => e.record["성취기준 코드"]).join(", "),
+      ),
+    );
+    const add = node("button", matches.length + "개 기준 함께 연결");
+    add.onclick = () => {
+      sources.push(...matches.map((entry) => ({ ...entry, date: retrieved })));
+      markChanged();
+      renderCatalog();
+    };
+    host.append(add);
+  }
+  if (unresolved.length)
+    host.append(
+      node(
+        "p",
+        "원본을 한 건으로 특정할 수 없는 코드 · " + unresolved.join(", "),
+        "studio-note",
+      ),
+    );
+}
 function renderCatalog() {
+  renderMatches();
   const kind = $("sheetKind").value,
     terms = $("query").value.toLowerCase().trim().split(/\s+/);
   const all = Array.from(catalog[kind]?.values() || []).filter((x) =>

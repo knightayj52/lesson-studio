@@ -18,7 +18,7 @@ server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler,
 threading.Thread(target=server.serve_forever, daemon=True).start()
 project = {}
 uploads = []
-rows = [["학년군", "교과", "성취기준 코드", "성취기준"], ["초등", "과학", "[가상01]", "가상 원문"]]
+rows = [["학년군", "교과", "성취기준 코드", "성취기준"], ["초등", "과학", "[가상01-01]", "가상 원문"]]
 
 
 def drive(route):
@@ -63,9 +63,11 @@ with ExitStack() as stack:
         for k in range(6):
             page.click(f'#kinds button[data-kind="{k}"]')
             assert "L1-A4" in page.locator("#preview").inner_text()
+    page.click("[data-panel=overview]")
+    page.fill("#plan", "설계서에 연결된 기준 [가상01-01]")
     page.click("[data-panel=curriculum]")
     page.click("#syncSheet")
-    page.locator("#hits button").first.click()
+    page.locator("#matchedStandards button").click()
     rows[1][3] = "갱신한 원문"
     page.click("#syncSheet")
     page.get_by_text(re.compile("원문 변경됨")).first.wait_for()
