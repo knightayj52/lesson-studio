@@ -46,7 +46,7 @@ for (const project of examples)
     );
     for (const cards of all)
       design.stages.forEach((s, i) => {
-        assert.ok(cards[i].title.includes("L1-A" + (i + 1)));
+        assert.ok(cards[i].title.includes("1차시 · 활동 " + (i + 1)));
         assert.ok(cards[i].title.includes(s.time + "분"));
       });
     assert.ok(all[0][1].notes.includes(design.stages[1].prompt));
@@ -73,7 +73,7 @@ test("each standard uses only its designated evidence at the current lesson posi
     key, kind: "전체", record: { "성취기준 코드": key, "성취수준 A": "수준 " + key },
   }));
   const cards = materialCards(5, { ...project, sources }, lesson, design, 1).slice(4);
-  assert.deepEqual(Array.from(cards, card => card.body.join(" ").match(/L2-A\d/g) || []).flat(), ["L2-A2", "L2-A4"]);
+  assert.deepEqual(Array.from(cards, card => card.body.join(" ").match(/2차시 · 활동 \d/g) || []).flat(), ["2차시 · 활동 2", "2차시 · 활동 4"]);
   assert.ok(cards[2].body.some(line => line.includes("연결한 활동 증거가 없습니다")));
   cards.forEach((card, i) => assert.ok(card.body.some(line => line.includes("수준 " + sources[i].key))));
 });

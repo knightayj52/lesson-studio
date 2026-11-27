@@ -268,7 +268,7 @@ body:has(#workspace:not([hidden])) main {
   max-width: 1440px;
   margin: 24px auto;
 }
-#workspace > section:first-child {
+#workspace > section:first-of-type {
   position: sticky;
   top: 20px;
   padding: 18px;
@@ -478,7 +478,7 @@ body:has(#workspace:not([hidden])) main {
   #workspace {
     grid-template-columns: 1fr;
   }
-  #workspace > section:first-child {
+  #workspace > section:first-of-type {
     position: static;
   }
   .studio-nav {
@@ -718,7 +718,7 @@ button:hover {
   }
 }
 @media (min-width: 821px) {
-  #workspace > section:first-child {
+  #workspace > section:first-of-type {
     max-height: calc(100vh - 40px);
     overflow: auto;
   }
@@ -738,4 +738,23 @@ button:hover {
   .board .sheet-card {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+@media screen {
+  #workspace > .studio-head { grid-column: 2; grid-row: 1; }
+  #workspace > section:first-of-type { grid-column: 1; grid-row: 1 / span 2; }
+  #workspace > .studio-main { grid-column: 2; }
+  .studio-head { flex-wrap: wrap; }
+  .studio-head > div { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+  #projectSwitch summary { cursor: pointer; }
+  #projectSwitch button { margin-top: 8px; }
+}
+@media screen and (max-width: 820px) {
+  #workspace > .studio-head, #workspace > section:first-of-type,
+  #workspace > .studio-main { grid-column: 1; grid-row: auto; }
+  .studio-head > div { flex-basis: 100%; }
+  .studio-nav { margin-top: 0; }
+}
+@media print {
+  #workspace > .studio-head { display: none; }
 }

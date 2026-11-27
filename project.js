@@ -175,10 +175,11 @@ async function refresh() {
   for (const f of files) {
     const b = document.createElement("button");
     b.className = "secondary";
-    b.textContent = f.name + " · " + f.modifiedTime.slice(0, 10);
+    b.textContent = f.name.replace(/\.json$/i, "") + " · " + f.modifiedTime.slice(0, 10);
     b.onclick = () => load(f);
     $("projects").append(b);
   }
+  updateHeading();
 }
 async function load(f) {
   if (busy) return;
@@ -199,6 +200,7 @@ async function load(f) {
     fileId = f.id;
     revision = meta.version;
     dirty = false;
+    $("projectSwitch").open = false;
     status("프로젝트 불러오기 완료");
   } catch (e) {
     status(e.message);
@@ -337,6 +339,9 @@ $("download").onclick = () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 function updateHeading() {
+  $("nextStep").textContent = !$("title").value.trim()
+    ? ($("projects").childElementCount ? "저장한 프로젝트 열기" : "프로젝트 이름 입력")
+    : (lessons.length ? "차시 자료 제작" : "＋ 첫 차시 만들기");
   $("studioTitle").textContent = $("title").value.trim() || "새 수업 프로젝트";
   $("studioMeta").textContent =
     [
@@ -413,7 +418,31 @@ function renderLessons() {
 document
   .querySelectorAll("[data-panel]")
   .forEach((b) => (b.onclick = () => showPanel(b.dataset.panel)));
-$("newTop").onclick = () => $("fresh").click();
+$("newTop").onclick = () => {
+  $("fresh").click();
+  if (!dirty) {
+    $("projectSwitch").open = false;
+    $("title").focus();
+  }
+};
+$("nextStep").onclick = () => {
+  if (!$("title").value.trim()) {
+    if ($("projects").childElementCount) {
+      $("projectSwitch").open = true;
+      $("projects").firstElementChild.focus();
+    } else {
+      showPanel("overview");
+      $("title").focus();
+    }
+  } else if (!lessons.length) {
+    showPanel("lessons");
+    $("addLesson").click();
+    $("lessonList").querySelector("input")?.focus();
+  } else {
+    showPanel("materials");
+    $("whichLesson").focus();
+  }
+};
 $("saveTop").onclick = save;
 $("addLesson").onclick = () => {
   if (lessons.length >= 200) return;

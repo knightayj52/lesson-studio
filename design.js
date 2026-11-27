@@ -184,8 +184,11 @@ function evidenceStages(lesson, source) {
     ? [0, 1, 2, 3].filter((i) => indices.includes(i))
     : [];
 }
+function activityLabel(lessonIndex, activityIndex) {
+  return (lessonIndex + 1) + "차시 · 활동 " + (activityIndex + 1);
+}
 function materialCards(kind, p, l, d, index) {
-  const code = (i) => "L" + (index + 1) + "-A" + (i + 1);
+  const code = (i) => activityLabel(index, i);
   const cards = d.stages.map((s, i) => {
     const title = code(i) + " · " + s.name + " · " + s.time + "분";
     const notes =

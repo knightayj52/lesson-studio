@@ -85,7 +85,7 @@ with ExitStack() as stack:
             assert page.locator("#suggest").is_disabled()
         for k in range(6):
             page.click(f'#kinds button[data-kind="{k}"]')
-            assert "L1-A4" in page.locator("#preview").inner_text()
+            assert "1차시 · 활동 4" in page.locator("#preview").inner_text()
         page.click("[data-panel=lessons]")
         page.click("#copyLesson")
         page.get_by_label("2차시 제목").fill("후속 탐구")
@@ -104,7 +104,7 @@ with ExitStack() as stack:
                 path = f"{number:03}차시/교사용/교수학습 과정안.docx"
                 with ZipFile(BytesIO(archive.read(path))) as doc:
                     contents = doc.read("word/document.xml").decode()
-                    assert f"L{number}-A4" in contents
+                    assert f"{number}차시 · 활동 4" in contents
                     assert ("새 사례에 적용해 설명한다." in contents) == (number == 2)
         assert page.locator("#whichLesson").input_value() == "1"
     page.get_by_label("학습목표", exact=True).fill("")
@@ -128,7 +128,7 @@ with ExitStack() as stack:
     page.locator("#designer fieldset input").nth(1).check()
     page.click('#kinds button[data-kind="5"]')
     mapping = page.locator("#preview .sheet-card").last.inner_text()
-    assert "L1-A2" in mapping and "가상의 수준 진술" in mapping and "L1-A3" not in mapping
+    assert "1차시 · 활동 2" in mapping and "가상의 수준 진술" in mapping and "1차시 · 활동 3" not in mapping
     page.check("#archive")
     with page.expect_download(timeout=90000) as dl:
         page.click('[data-out="zip"]')
@@ -149,9 +149,9 @@ with ExitStack() as stack:
                 elif name.endswith(".docx"):
                     with ZipFile(BytesIO(raw)) as doc:
                         xml = doc.read("word/document.xml").decode()
-                        assert "L1-A4" in xml
+                        assert "1차시 · 활동 4" in xml
                         if "평가" in name:
-                            assert "가상의 수준 진술" in xml and "L1-A2 ·" in xml.split("원본 성취수준")[-1]
+                            assert "가상의 수준 진술" in xml and "1차시 · 활동 2 ·" in xml.split("원본 성취수준")[-1]
                 elif name.endswith(".pdf"):
                     assert raw.startswith(b"%PDF")
                 else:
